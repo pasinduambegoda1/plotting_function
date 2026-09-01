@@ -1,0 +1,7 @@
+# Real test data and generated plots are typically confidential plant/test
+# results — keep them local, don't commit them.
+/real_test_data/
+/real_test_output/
+
+__pycache__/
+*.pyc
