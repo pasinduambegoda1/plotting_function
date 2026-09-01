@@ -52,7 +52,8 @@ It will:
    every CSV inside it is plotted against the PSSE reference for that
    location.
 4. Results land in a mirrored folder structure:
-   `<results_root>/<plant>/<main_test>/<sub_test>/<location>/<file_stem>_{P,Q,V}.png`
+   `<results_root>/<plant>/<main_test>/<location>/<sub_test>/<file_stem>_{P,Q,V}.png`
+   — grouped by measurement location first, sub-test second.
 
 ### Quick start
 
