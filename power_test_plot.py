@@ -73,30 +73,45 @@ def find_time_col(columns) -> str:
     return columns[0]
 
 
-def find_poc_col(columns, letter: str) -> str:
-    """Find the column ending in 'POC <letter>' (e.g. 'STSF POC P')."""
+def find_location_col(columns, letter: str, keyword: str = "POC") -> str:
+    """Find the column ending in '<keyword> <letter>' (e.g. 'STSF POC P').
+
+    `keyword` picks the measurement location: "POC" for the point of
+    connection today; a future location (33kV bus 1/2, inverter level)
+    just needs its own keyword once its PSSE/PSCAD column naming is known.
+    """
     for c in columns:
         n = _normalize(c)
-        if "POC" in n and n.split(" ")[-1] == letter:
+        if keyword.upper() in n and n.split(" ")[-1] == letter:
             return c
     raise ValueError(
-        f"Could not auto-detect a 'POC {letter}' column among: {list(columns)}. "
+        f"Could not auto-detect a '{keyword} {letter}' column among: {list(columns)}. "
         f"Pass the column name explicitly (e.g. --psse-{letter.lower()}-col)."
     )
+
+
+def find_poc_col(columns, letter: str) -> str:
+    """Find the column ending in 'POC <letter>' (e.g. 'STSF POC P')."""
+    return find_location_col(columns, letter, keyword="POC")
 
 
 # --------------------------------------------------------------------------
 # Loaders — each returns (time_seconds, {'P': arr, 'Q': arr, 'V': arr})
 # --------------------------------------------------------------------------
 
-def load_sim_source(path: str, p_col=None, q_col=None, v_col=None, time_col=None) -> tuple[np.ndarray, dict]:
+def load_sim_source(path: str, p_col=None, q_col=None, v_col=None, time_col=None, location_keyword: str = "POC") -> tuple[np.ndarray, dict]:
     """Loader for PSSE/PSCAD-style exports: numeric time column already in
-    seconds, POC P/Q/V columns already in MW/MVar/pu."""
+    seconds, <location> P/Q/V columns already in MW/MVar/pu.
+
+    `location_keyword` selects which measurement location's columns to
+    pull out of the (single, wide) simulation export — e.g. "POC" today;
+    a future location's keyword once its column naming is known.
+    """
     df = pd.read_csv(path)
     time_col = time_col or find_time_col(df.columns)
-    p_col = p_col or find_poc_col(df.columns, "P")
-    q_col = q_col or find_poc_col(df.columns, "Q")
-    v_col = v_col or find_poc_col(df.columns, "V")
+    p_col = p_col or find_location_col(df.columns, "P", keyword=location_keyword)
+    q_col = q_col or find_location_col(df.columns, "Q", keyword=location_keyword)
+    v_col = v_col or find_location_col(df.columns, "V", keyword=location_keyword)
     t = pd.to_numeric(df[time_col], errors="coerce").to_numpy(dtype=float)
     channels = {
         "P": pd.to_numeric(df[p_col], errors="coerce").to_numpy(dtype=float),

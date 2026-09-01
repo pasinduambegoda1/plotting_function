@@ -2,6 +2,7 @@
 # results — keep them local, don't commit them.
 /real_test_data/
 /real_test_output/
+/test_tree/
 
 __pycache__/
 *.pyc

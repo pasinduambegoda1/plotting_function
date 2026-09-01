@@ -1,13 +1,85 @@
 # Transient Plotting Tools
 
-Two related tools:
+Three related tools:
 
-1. **`power_test_plot.py`** — the primary tool going forward. Compares
-   Active Power / Reactive Power / Voltage at the POC across PSSE, PSCAD,
-   and real plant test CSVs for one grid-compliance test case.
-2. **`transient_plot.py`** — a generic single-channel version (one value
+1. **`power_test_app.py`** — the batch application. Point it at a folder
+   tree of PSSE / PSCAD / Test exports and it discovers, matches, and
+   plots every sub-test on its own. This is the one to run day-to-day.
+2. **`power_test_plot.py`** — the single-test-case engine underneath
+   `power_test_app.py` (loaders, alignment, rise/settling, plotting). Can
+   also be run directly for one-off comparisons outside the folder
+   convention.
+3. **`transient_plot.py`** — a generic single-channel version (one value
    column per file) used while the approach was being worked out. Still
    useful for anything that isn't a P/Q/V power-system test.
+
+---
+
+## `power_test_app.py` — batch application over a folder tree
+
+Point this at three root folders (PSSE, PSCAD, Test), all sharing the
+same layout:
+
+```
+<root>/<plant_name>/<main_test_name>/<sub_test_name>/...
+```
+
+e.g. `PSSE_ROOT/STSF1/HP3/SFPFT_01/...` — plant `STSF1`, main test `HP3`
+(a hold point), sub-test `SFPFT_01` (one of several similar sub-tests run
+under that hold point — `SFPFT_02`, `QSTEP_01`, etc.).
+
+- **PSSE and PSCAD** sub-test folders each hold exactly one CSV directly
+  inside them — the usual single wide simulation export with every
+  measurement location's channels as columns.
+- **Test** sub-test folders hold one subfolder per measurement location —
+  `POC`, `33B1`, `33B2`, `34INV` — each containing one or more CSV files.
+  Only `POC` is wired up today (see `ACTIVE_LOCATIONS` in the script); add
+  a location once its PSSE/PSCAD column-naming convention is known and
+  the Test-side folder check picks it up with no other changes.
+
+Run it once per (plant, main test) — **PSSE is always the reference.**
+It will:
+
+1. List the sub-test folders under PSSE and under Test for that
+   plant/main-test (and PSCAD's too, if `--pscad-root` is given).
+2. Only process sub-tests common to all sources given — one PSSE-only or
+   Test-only sub-test name is reported as **skipped**, not an error (PSSE
+   simply wasn't run for it, or Test doesn't have a matching folder yet).
+3. For each common sub-test, require the active location's folder (`POC`)
+   to exist under the Test sub-test folder — if it's missing, that's
+   reported as an **error** (this is different from step 2: the sub-test
+   itself matched, but the location folder inside it didn't). If present,
+   every CSV inside it is plotted against the PSSE reference for that
+   location.
+4. Results land in a mirrored folder structure:
+   `<results_root>/<plant>/<main_test>/<sub_test>/<location>/<file_stem>_{P,Q,V}.png`
+
+### Quick start
+
+```bash
+python3 power_test_app.py \
+  --psse-root /data/PSSE --test-root /data/TEST \
+  --plant STSF1 --main-test HP3 \
+  --results-root /data/results \
+  --rated-p 202 --rated-q 79.86 --margins 5
+```
+
+Add `--pscad-root /data/PSCAD` once real PSCAD exports exist — it's
+required to also have the plant/main-test/sub-test structure, and only
+sub-tests common to PSSE, PSCAD, *and* Test will run.
+
+Use `--dry-run` to see exactly what would be processed (which sub-tests,
+which files) without loading or plotting anything — good for checking a
+new folder tree before committing to a full run.
+
+Other flags (`--rated-v`, `--v-base`, `--margins`, `--transition-time`,
+`--window`, `--test-*-col`, `--test-*-divisor`) match `power_test_plot.py`
+below and apply to every sub-test processed in the run.
+
+The process exits with status `1` if any errors occurred (missing
+location folder, unreadable CSV, more/fewer than one PSSE CSV in a
+sub-test folder, etc.) so it's safe to script — check the exit code
+rather than scraping output for "ERROR".
 
 ---
 
