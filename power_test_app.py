@@ -32,9 +32,8 @@ reference. The app:
      PSSE-vs-Test rule above only applying at the sub-test level, not the
      location level. If it exists, every CSV inside it is plotted against
      the PSSE reference for that location.
-  5. Results are written to --results-root, grouped by measurement
-     location first and sub-test second:
-     <results_root>/<plant>/<main_test>/<location>/<sub_test>/
+  5. Results are written to a mirrored folder structure under
+     --results-root: <results_root>/<plant>/<main_test>/<sub_test>/<location>/
 
 Usage:
     python3 power_test_app.py \
@@ -231,7 +230,7 @@ def run_batch(
                     print(f"  ERROR [{sub_test}/{location}]: analysis failed for {test_csv}: {e}")
                     continue
 
-                out_dir = results_root / plant / main_test / location / sub_test
+                out_dir = results_root / plant / main_test / sub_test / location
                 out_dir.mkdir(parents=True, exist_ok=True)
                 stem = test_csv.stem
                 for ch in CHANNELS:
